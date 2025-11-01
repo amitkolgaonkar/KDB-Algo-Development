@@ -1,0 +1,8 @@
+ib_insync
+pykx
+pandas
+numpy
+matplotlib
+requests
+scikit-learn
+loguru

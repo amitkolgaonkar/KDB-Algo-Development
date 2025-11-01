@@ -1,0 +1,9 @@
+ibkr:
+  host: "127.0.0.1"
+  port: 4002
+  client_id: 1
+  tick_interval: 1
+  reconnect_interval: 10
+kdb:
+  host: "tick"
+  port: 5001

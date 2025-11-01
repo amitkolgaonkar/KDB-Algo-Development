@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # -----------------------------
+  # Q Processes
+  # -----------------------------
+  tick:
+    build:
+      context: ./q
+      dockerfile: Dockerfile
+    container_name: tick
+    working_dir: /q
+    command: ["/q/l64/q", "tick.q", "-p", "5001"]
+    ports:
+      - "5001:5001"
+    environment:
+      - QHOME=/q/l64
+      - QLIC=/root/q
+    volumes:
+      - ./data/db:/q/db
+      - ./kc.lic:/root/kc.lic
+      - ./q/l64:/q/l64
+      - ./q:/q
+    restart: always
+
+  rdb:
+    build: ./q
+    container_name: rdb
+    working_dir: /q
+    command: ["/q/l64/q", "r.q", "-p", "5010"]
+    depends_on:
+      - tick
+    ports:
+      - "5010:5010"
+    environment:
+      - QHOME=/q/l64
+      - QLIC=/root/q
+    volumes:
+      - ./data/db:/q/db
+      - ./kc.lic:/root/kc.lic
+      - ./q/l64:/q/l64
+      - ./q:/q
+    restart: always
+
+  testfeed:
+    build: ./q
+    container_name: testfeed
+    working_dir: /q
+    command: ["/q/l64/q", "testfeed.q", "-p", "5011"]
+    depends_on:
+      - tick
+    environment:
+      - FEED_INTERVAL=1
+      - QHOME=/q/l64
+      - QLIC=/root/q
+    volumes:
+      - ./kc.lic:/root/kc.lic
+      - ./q/l64:/q/l64
+      - ./q:/q
+    restart: unless-stopped
+
+  # -----------------------------
+  # Python Services
+  # -----------------------------
+  collector:
+    build:
+      context: .
+      dockerfile: collector/Dockerfile
+    container_name: collector
+    working_dir: /app
+    command: ["python", "collector_ibkr.py"]
+    depends_on:
+      - tick
+    environment:
+      - KDB_HOST=tick
+      - KDB_PORT=5001
+    volumes:
+      - ./collector/collector_ibkr.py:/app/collector_ibkr.py
+      - ./config.yaml:/app/config.yaml
+      - ./utils:/app/utils
+    restart: always
+
+  strategy:
+    build:
+      context: .
+      dockerfile: strategy/Dockerfile
+    container_name: strategy
+    working_dir: /app
+    command: ["python", "strategy_engine.py"]
+    depends_on:
+      - rdb
+    environment:
+      - KDB_HOST=rdb
+      - KDB_PORT=5010
+    volumes:
+      - ./strategy:/app
+      - ./utils:/app/utils    # ✅ Shared utils
+    restart: always
+
+  execution:
+    build:
+      context: .
+      dockerfile: execution/Dockerfile
+    container_name: execution
+    working_dir: /app
+    command: ["python", "execution_engine.py"]
+    depends_on:
+      - strategy
+    volumes:
+      - ./execution:/app
+      - ./utils:/app/utils    # ✅ Shared utils
+    restart: always
+
+  monitor:
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
+    container_name: monitor
+    working_dir: /app
+    command: ["python", "monitor.py"]
+    depends_on:
+      - execution
+    volumes:
+      - ./monitor:/app
+      - ./utils:/app/utils    # ✅ Shared utils
+    restart: always
+
+volumes:
+  db:
+    driver: local

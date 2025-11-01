@@ -1,0 +1,8 @@
+pandas
+numpy
+requests
+pykx
+ib_insync
+websocket-client
+schedule
+PyYAML                                                                                                                                                                                                                                                                                                                                                                                          
