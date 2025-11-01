@@ -1,0 +1,1 @@
+algo trading in kdb 
