@@ -1,44 +1,40 @@
-#FROM debian:bullseye-slim
-
-#WORKDIR /q
-
-## Copy q binary and license
-#COPY q /usr/local/bin/q
-#COPY kc.lic /root/
-
-# Copy scripts
-#COPY . /q
-
-#RUN chmod +x /usr/local/bin/q
-
-##EXPOSE 5001 5010 5011
-#ENTRYPOINT ["/usr/local/bin/q"]
-# Base image
 FROM ubuntu:22.04
 
-# Set environment variables
 ENV QHOME=/root/q
 ENV PATH=$QHOME/l64:$PATH
 
-# Install dependencies
 RUN apt-get update && apt-get install -y \
     libstdc++6 \
     libtinfo5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy your full q folder including binaries
-COPY l64 /root/q/l64
+# Copy core q files (essential)
+COPY q.k ${QHOME}/q.k
 
-# Copy your q scripts
-COPY tick.q /root/q/tick.q
-COPY r.q /root/q/r.q
-COPY testfeed.q /root/q/testfeed.q
+# Copy optional files only if they exist on host
+RUN \
+    if [ -f q.q ]; then cp q.q ${QHOME}/q.q && echo "Copied q.q"; else echo "q.q optional - skipping"; fi && \
+    if [ -f sl.q ]; then cp sl.q ${QHOME}/sl.q && echo "Copied sl.q"; else echo "sl.q optional - skipping"; fi
 
-# Copy license file
-COPY kc.lic /root/q/kc.lic
+# Copy binaries
+COPY l64 ${QHOME}/l64
 
-# Set working directory
-WORKDIR /root/q
+# Copy all scripts
+COPY *.q ${QHOME}/
 
-# Default command (you can override in docker-compose)
-CMD ["q"]
+# Copy license if exists
+RUN if [ -f kc.lic ]; then cp kc.lic ${QHOME}/kc.lic && echo "Copied kc.lic"; else echo "kc.lic missing - running in trial mode"; fi
+
+WORKDIR ${QHOME}
+
+# Debug: Verify key files during build
+RUN echo "=== Verifying q files ===" && \
+    ls -la q.k l64/q *.q && \
+    [ -f kc.lic ] && echo "kc.lic present" || echo "Running in trial mode"
+
+# Create dirs
+RUN mkdir -p /hdb /tmp
+
+EXPOSE 5010 5011
+
+CMD ["/root/q/l64/q"]

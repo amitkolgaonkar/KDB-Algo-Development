@@ -1,67 +1,62 @@
 version: '3.8'
-
 services:
-  # -----------------------------
-  # Q Processes
-  # -----------------------------
-  tick:
+  tick:  # Tickerplant (TP)
     build:
       context: ./q
       dockerfile: Dockerfile
     container_name: tick
-    working_dir: /q
-    command: ["/q/l64/q", "tick.q", "-p", "5001"]
-    ports:
-      - "5001:5001"
-    environment:
-      - QHOME=/q/l64
-      - QLIC=/root/q
+    command: 
+      - "/root/q/l64/q"      # Binary
+      - "tick.q"             # Script
+      - "-p"                 # Flag
+      - "5010"               # Port
     volumes:
-      - ./data/db:/q/db
-      - ./kc.lic:/root/kc.lic
-      - ./q/l64:/q/l64
-      - ./q:/q
-    restart: always
+      - ./tmp:/tmp
+      - ./q/kc.lic:/root/q/kc.lic:ro
+    environment:
+      - FEED_INTERVAL=1000
+    restart: always  # Add for resilience
+    expose:          # Add for internal networking
+      - 5010
 
   rdb:
-    build: ./q
+    build:
+      context: ./q
+      dockerfile: Dockerfile
     container_name: rdb
-    working_dir: /q
-    command: ["/q/l64/q", "r.q", "-p", "5010"]
+    command:
+      - "/root/q/l64/q"
+      - "r.q"
+      - "-p"
+      - "5011"
     depends_on:
       - tick
-    ports:
-      - "5010:5010"
-    environment:
-      - QHOME=/q/l64
-      - QLIC=/root/q
     volumes:
-      - ./data/db:/q/db
-      - ./kc.lic:/root/kc.lic
-      - ./q/l64:/q/l64
-      - ./q:/q
+      - ./hdb:/hdb
+      - ./q/kc.lic:/root/q/kc.lic:ro
+    environment:
+      - FEED_INTERVAL=1000
     restart: always
+    expose:
+      - 5011
 
   testfeed:
-    build: ./q
+    build:
+      context: ./q
+      dockerfile: Dockerfile
     container_name: testfeed
-    working_dir: /q
-    command: ["/q/l64/q", "testfeed.q", "-p", "5011"]
+    command:
+      - "/root/q/l64/q"
+      - "testfeed.q"
     depends_on:
       - tick
-    environment:
-      - FEED_INTERVAL=1
-      - QHOME=/q/l64
-      - QLIC=/root/q
     volumes:
-      - ./kc.lic:/root/kc.lic
-      - ./q/l64:/q/l64
-      - ./q:/q
-    restart: unless-stopped
+      - ./q/kc.lic:/root/q/kc.lic:ro
+    environment:
+      - FEED_INTERVAL=2000
+    restart: always
 
-  # -----------------------------
-  # Python Services
-  # -----------------------------
+  # Python Services (unchanged - good as-is)
   collector:
     build:
       context: .
@@ -73,7 +68,7 @@ services:
       - tick
     environment:
       - KDB_HOST=tick
-      - KDB_PORT=5001
+      - KDB_PORT=5010  # Fixed: Was 5001 → 5010 (TP port)
     volumes:
       - ./collector/collector_ibkr.py:/app/collector_ibkr.py
       - ./config.yaml:/app/config.yaml
@@ -91,10 +86,10 @@ services:
       - rdb
     environment:
       - KDB_HOST=rdb
-      - KDB_PORT=5010
+      - KDB_PORT=5011  # Fixed: Was 5010 → 5011 (RDB port)
     volumes:
       - ./strategy:/app
-      - ./utils:/app/utils    # ✅ Shared utils
+      - ./utils:/app/utils
     restart: always
 
   execution:
@@ -108,7 +103,7 @@ services:
       - strategy
     volumes:
       - ./execution:/app
-      - ./utils:/app/utils    # ✅ Shared utils
+      - ./utils:/app/utils
     restart: always
 
   monitor:
@@ -122,9 +117,7 @@ services:
       - execution
     volumes:
       - ./monitor:/app
-      - ./utils:/app/utils    # ✅ Shared utils
+      - ./utils:/app/utils
     restart: always
 
-volumes:
-  db:
-    driver: local
+# Remove unused volumes:db (or assign to a service)
