@@ -1,0 +1,9 @@
+pykx
+pandas
+numpy
+matplotlib
+scipy
+ta
+ib_insync
+requests
+flask

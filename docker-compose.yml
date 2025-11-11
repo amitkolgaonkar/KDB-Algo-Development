@@ -1,123 +1,49 @@
 version: '3.8'
+
 services:
-  tick:  # Tickerplant (TP)
-    build:
-      context: ./q
-      dockerfile: Dockerfile
-    container_name: tick
-    command: 
-      - "/root/q/l64/q"      # Binary
-      - "tick.q"             # Script
-      - "-p"                 # Flag
-      - "5010"               # Port
-    volumes:
-      - ./tmp:/tmp
-      - ./q/kc.lic:/root/q/kc.lic:ro
+  ibgateway:
+    image: ghcr.io/unusualalpha/ibgateway:latest
+    container_name: ibgateway
     environment:
-      - FEED_INTERVAL=1000
-    restart: always  # Add for resilience
-    expose:          # Add for internal networking
-      - 5010
+      - TWS_USERID=${TWS_USERID}
+      - TWS_PASSWORD=${TWS_PASSWORD}
+      - TRADING_MODE=paper
+      - VNC_PASSWORD=secret
+    ports:
+      - "4001:4001"  # IB API
+      - "5900:5900"  # VNC (optional)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  rdb:
-    build:
-      context: ./q
-      dockerfile: Dockerfile
-    container_name: rdb
-    command:
-      - "/root/q/l64/q"
-      - "r.q"
-      - "-p"
-      - "5011"
-    depends_on:
-      - tick
+  kdb:
+    image: kxsys/kdb:latest
+    container_name: kdb-tick
+    ports:
+      - "5000:5000"
     volumes:
-      - ./hdb:/hdb
-      - ./q/kc.lic:/root/q/kc.lic:ro
+      - ./kdb:/opt/kdb
+      - kdb-data:/var/q
+    command: q /opt/kdb/tick.q -p 5000
+
+  feeder:
+    build: ./feeder
+    container_name: nifty-feeder
+    depends_on:
+      ibgateway:
+        condition: service_healthy
+      kdb:
+        condition: service_started
     environment:
-      - FEED_INTERVAL=1000
-    restart: always
-    expose:
-      - 5011
-
-  testfeed:
-    build:
-      context: ./q
-      dockerfile: Dockerfile
-    container_name: testfeed
-    command:
-      - "/root/q/l64/q"
-      - "testfeed.q"
-    depends_on:
-      - tick
+      - IB_HOST=ibgateway
+      - IB_PORT=4001
+      - KDB_HOST=kdb-tick
+      - KDB_PORT=5000
+      - CLIENT_ID=10
     volumes:
-      - ./q/kc.lic:/root/q/kc.lic:ro
-    environment:
-      - FEED_INTERVAL=2000
-    restart: always
+      - ./feeder:/app
 
-  # Python Services (unchanged - good as-is)
-  collector:
-    build:
-      context: .
-      dockerfile: collector/Dockerfile
-    container_name: collector
-    working_dir: /app
-    command: ["python", "collector_ibkr.py"]
-    depends_on:
-      - tick
-    environment:
-      - KDB_HOST=tick
-      - KDB_PORT=5010  # Fixed: Was 5001 → 5010 (TP port)
-    volumes:
-      - ./collector/collector_ibkr.py:/app/collector_ibkr.py
-      - ./config.yaml:/app/config.yaml
-      - ./utils:/app/utils
-    restart: always
-
-  strategy:
-    build:
-      context: .
-      dockerfile: strategy/Dockerfile
-    container_name: strategy
-    working_dir: /app
-    command: ["python", "strategy_engine.py"]
-    depends_on:
-      - rdb
-    environment:
-      - KDB_HOST=rdb
-      - KDB_PORT=5011  # Fixed: Was 5010 → 5011 (RDB port)
-    volumes:
-      - ./strategy:/app
-      - ./utils:/app/utils
-    restart: always
-
-  execution:
-    build:
-      context: .
-      dockerfile: execution/Dockerfile
-    container_name: execution
-    working_dir: /app
-    command: ["python", "execution_engine.py"]
-    depends_on:
-      - strategy
-    volumes:
-      - ./execution:/app
-      - ./utils:/app/utils
-    restart: always
-
-  monitor:
-    build:
-      context: .
-      dockerfile: monitor/Dockerfile
-    container_name: monitor
-    working_dir: /app
-    command: ["python", "monitor.py"]
-    depends_on:
-      - execution
-    volumes:
-      - ./monitor:/app
-      - ./utils:/app/utils
-    restart: always
-
-# Remove unused volumes:db (or assign to a service)
+volumes:
+  kdb-data:
