@@ -5,9 +5,12 @@ ENV TZ=UTC
 
 RUN apt-get update && apt-get install -y \
     wget \
+    libssl-dev \
+    file \
     && rm -rf /var/lib/apt/lists/*
 
-COPY q.k /opt/kdb/q
+# Copy 64-bit files
+COPY q /opt/kdb/q
 
 COPY kc.lic /opt/kdb/kc.lic
 
@@ -20,6 +23,8 @@ RUN chmod +x /opt/kdb/q
 WORKDIR /opt/kdb
 
 ENV QHOME=/opt/kdb
+
+ENV LD_LIBRARY_PATH=/opt/kdb
 
 EXPOSE 5000
 

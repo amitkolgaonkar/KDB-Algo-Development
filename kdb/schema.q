@@ -1,34 +1,10 @@
-\l
+/ schema.q
+option_chain:([] symbol:`symbol$(); expiry:`date$(); strike:`float$(); right:`symbol$(); bid:`float$(); ask:`float$(); last:`float$(); volume:`long$(); open_interest:`long$(); implied_vol:`float$(); time:`timestamp$())
 
-// Option chain
-nifty_opts:([] 
-    time:`timestamp$(); 
-    exp:`date$(); 
-    strike:`float$(); 
-    right:`symbol$(); 
-    bid:`float$(); 
-    ask:`float$(); 
-    last:`float$(); 
-    vol:`long$(); 
-    size:`long$()
-)
+nifty_opts:([] symbol:`symbol$(); expiry:`date$(); strike:`float$(); right:`symbol$(); bid:`float$(); ask:`float$(); last:`float$(); volume:`long$(); open_interest:`long$(); implied_vol:`float$(); time:`timestamp$())
 
-// Strategy PnL
-pnl:([] 
-    time:`timestamp$(); 
-    strategy:`symbol$(); 
-    position:`symbol$(); 
-    qty:`int$(); 
-    entry_price:`float$(); 
-    mtm:`float$(); 
-    pnl:`float$(); 
-    total_pnl:`float$()
-)
+pnl: ([] time:`timestamp$(); strategy:`symbol$(); leg_id:`int$(); symbol_inst:`symbol$(); strike:`float$(); right:`symbol$(); qty:`int$(); entry_price:`float$(); mtm:`float$(); pnl:`float$(); total_pnl:`float$())
 
-// Strategy state
-strategy_state:([] 
-    strategy:`symbol$(); 
-    active:`boolean$(); 
-    entry_time:`timestamp$(); 
-    legs:()
-)
+strategy_state:([] strategy:`symbol$(); active:`boolean$(); start_time:`timestamp$(); end_time:`timestamp$(); metadata:`symbol$())
+
+signals:([] time:`timestamp$(); strategy:`symbol$(); reason:`symbol$(); params:())

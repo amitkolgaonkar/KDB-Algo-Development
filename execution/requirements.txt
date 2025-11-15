@@ -1,7 +1,0 @@
-ib_insync
-pykx
-pandas
-numpy
-requests
-loguru
-tenacity

@@ -1,7 +1,0 @@
-flask
-pykx
-pandas
-numpy
-loguru
-schedule
-requests
