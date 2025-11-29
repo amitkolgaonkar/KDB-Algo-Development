@@ -2,7 +2,7 @@
 system "p 5010"
 
 / connect to TP (container names are used for hopens)
-.tp: hopen `:kdb-tick:5000;
+.tp: hopen `:tick:5000;
 if[not null .tp; 0N!"RDB: connected to TP"];
 
 / subscribe to streams

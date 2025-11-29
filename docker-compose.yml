@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   tick:
     image: ubuntu:22.04
-    container_name: kdb-tick
+    container_name: tick
     working_dir: /opt/kdb
     volumes:
       - ./kdb/common:/opt/kdb
@@ -14,6 +12,8 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   rdb:
     image: ubuntu:22.04
@@ -71,7 +71,7 @@ services:
     container_name: ibkr-feeder
     working_dir: /app
     environment:
-      - FEED_MODE=${FEED_MODE:-mock}         # set to "ibkr" for real TWS use
+      - FEED_MODE=${FEED_MODE:-ibkr}         # set to "ibkr" for real TWS use
       - IB_HOST=${IB_HOST:-host.docker.internal}
       - IB_PORT=${IB_PORT:-4001}
       - IB_CLIENT_ID=${IB_CLIENT_ID:-10}
@@ -82,3 +82,5 @@ services:
     volumes:
       - ./feeder:/app
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

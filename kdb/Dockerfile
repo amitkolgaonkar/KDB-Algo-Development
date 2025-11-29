@@ -10,13 +10,21 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy 64-bit files
-COPY q /opt/kdb/q
+RUN mkdir -p /opt/kdb
+COPY ./common/q /opt/kdb/q
+RUN chmod +x /opt/kdb/q
 
-COPY kc.lic /opt/kdb/kc.lic
+COPY common /opt/kdb/common
 
-COPY tick.q /opt/kdb/tick.q
+COPY ./common/q /opt/kdb/q
 
-COPY schema.q /opt/kdb/schema.q
+COPY ./common/kc.lic /opt/kdb/kc.lic
+
+COPY ./common/q.k /opt/kdb/q.k
+
+COPY ./common/tick.q /opt/kdb/tick.q
+
+COPY ./common/schema.q /opt/kdb/schema.q
 
 RUN chmod +x /opt/kdb/q
 

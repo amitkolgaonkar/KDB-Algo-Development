@@ -1,62 +1,64 @@
-/ ======================= option_chain ==========================
-option_chain:(
-    [] symbol:`symbol$();
-       expiry:`date$();
-       strike:`float$();
-       option_type:`symbol$();
-       bid:`float$();
-       ask:`float$();
-       last_price:`float$();
-       volume:`long$();
-       open_interest:`long$();
-       implied_vol:`float$();
-       time:`timestamp$()
-);
+/ =========================================================
+/ schema.q  — Clean corrected schema for your project
+/ =========================================================
 
-/ ======================= nifty_opts ============================
-nifty_opts:([] 
-    time:`timestamp$();
-    exp:`date$();
-    strike:`float$();
-    right:`symbol$();
-    bid:`float$();
-    ask:`float$();
-    last_price:`float$();
-    vol:`long$();
-    size:`long$();
-    implied_vol:`float$()  // Added this; ensure it's after other columns
-    );
+/ -------------------- option_chain -----------------------
+option_chain: ([
+    symbol:        `symbol$();
+    expiry:        `date$();
+    strike:        `float$();
+    option_type:   `symbol$();
+    bid:           `float$();
+    ask:           `float$();
+    last_price:    `float$();
+    volume:        `long$();
+    open_interest: `long$();
+    implied_vol:   `float$();
+    time:          `timestamp$()]);
 
-pnl:([] 
-    time:`timestamp$();
-    strategy:`symbol$();
-    position:`symbol$();
-    qty:`int$();
-    entry_price:`float$();
-    mtm:`float$();
-    pnl:`float$();
-    total_pnl:`float$()
-    );
+/ ---------------------- nifty_opts ------------------------
+nifty_opts: ([
+    time:         `timestamp$();
+    expiry:       `date$();
+    strike:       `float$();
+    right:        `symbol$();     / CE / PE
+    bid:          `float$();
+    ask:          `float$();
+    last_price:   `float$();
+    vol:          `long$();
+    size:         `long$();
+    implied_vol:  `float$()]);
 
-strategy_state:([] 
-    strategy:`symbol$();
-    active:`boolean$();
-    entry_time:`timestamp$();
-    legs:()
-    );
-/ ======================= underlying =============================
-underlying:(
-    [] symbol:`symbol$();
-       last_price:`float$();
-       time:`timestamp$()
-);
+/ ------------------------ pnl table -----------------------
+pnl: ([
+    time:        `timestamp$();
+    strategy:    `symbol$();
+    position:    `symbol$();     / LONG or SHORT
+    qty:         `int$();
+    entry_price: `float$();
+    mtm:         `float$();      / Mark to market
+    pnl:         `float$();
+    total_pnl:   `float$()]);
 
-/ ======================= pnl table ===============================
-/ ======================= strategy_state ==========================
-/ ======================= signals ===============================
-signals:(
-    [] time:`timestamp$();
-       strategy:`symbol$();
-       reason:`symbol$();
-       params:()
-);
+/ --------------------- strategy_state ---------------------
+strategy_state: ([
+    strategy:   `symbol$();
+    active:     `boolean$();
+    entry_time: `timestamp$();
+    legs:       ();              / list of legs (generic)
+    params:     `symbol$()]);
+
+/ ----------------------- underlying -----------------------
+underlying: ([
+    symbol:      `symbol$();
+    last_price:  `float$();
+    time:        `timestamp$()]);
+
+/ ------------------------- signals ------------------------
+signals: ([
+    time:      `timestamp$();
+    strategy:  `symbol$();
+    reason:    `symbol$();       / higherhigh, vixcross etc.
+    params:    `symbol$()]);
+
+show "schema loaded successfully";
