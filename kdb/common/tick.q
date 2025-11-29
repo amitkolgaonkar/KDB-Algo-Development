@@ -3,27 +3,30 @@
 \l schema.q
 
 .tickSubscribers:() //list of connected subscribers
-
-// Function to handle incoming data
+/ ======================= handleData Function ==========================
+/ handleData is called by feeder (e.g., kdb('handleData', msg_dict))
 handleData:{[msg]
-table: msg`table
-data: msg`data
+    table: msg`table;
+    data: msg`data;
+    / validation check
+    if[not table in tbls;
+        show "ERROR: Unknown table: ", string table;
+        :();
+    ];
+    / append data to the table
+    / example: underlying, option_chain, nifty_opts, etc.
+    switch table {
+        `option_chain: option_chain insert data;
+        `nifty_opts: nifty_opts insert data;
+        `pnl: pnl insert data;
+        `strategy_state: strategy_state insert data;
+        `signals: signals insert data;
+        : show "Unknown table type: ", string table;
+    };
+};
 
-//validate data against schema
-if[not table in key tables;
-    `$"Unknown table: ",string table;
-    return
-];
-//Store in appropriate table
-case[table] of
-    `option_chain: .option_chain,:data;
-    `nifty_opts: .nifty_opts,:data;
-    `pnl: .pnl,:data;
-    `strategy_state: .strategy_state,:data;
-    `signals: .signals,:data;
-    :`$"Unknown table type: ",string table
 
-}
+
 //Function to subscribe to tick data
 subscribe:{[func]
     .tickSubscribers,:func
@@ -57,18 +60,26 @@ while[1;
 
 }
 //Main server Loop
+/ ======================= Server Loop (hlisten for Feeder Connections) ==========================
+/ Start listening on port for feeder connections
 server:{[port]
-    h:hopen port;
-    `$"Ticker Plant Started on port ",string port;
+    h: hlisten port;  / Listen on port
+    show "Tickerplant listening on port ", string port;
     while[1;
-        try:{
-            conn: haccept h;
-            handleConnection [conn];
-        }catch{
-            `$"Error in server loop: ",string x;
-        };
+        conn: first h;  / Accept connection
+        if[not null conn;
+            / Read msg from connection
+            msg: hread conn;  / Read dict from feeder
+            if[not null msg;
+                handleData msg;  / Call handleData
+            ];
+            / Close on error or end
+            close conn;
+        ];
     ];
-}
+};
+
+
 //Initialie ticker Plant
 initialize:{
     `$"Ticker Plant initialized with schema";
