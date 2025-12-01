@@ -1,90 +1,127 @@
-//tick.q - ticker plant with your schema
-//File: kdb/common/tick.q
 \l schema.q
 
-.tickSubscribers:() //list of connected subscribers
-/ ======================= handleData Function ==========================
-/ handleData is called by feeder (e.g., kdb('handleData', msg_dict))
+/ ======================= Tickerplant Setup ======================
+logdir:"./logs";
+system "mkdir -p ", logdir;
+
+/ Tables allowed
+tbls:`option_chain`nifty_opts`pnl`strategy_state`underlying`signals;
+/ Initialize subscriber list so append won't fail
+.tickSubscribers: ();
+
 handleData:{[msg]
     table: msg`table;
-    data: msg`data;
-    / validation check
+    data:  msg`data;
+
     if[not table in tbls;
         show "ERROR: Unknown table: ", string table;
         :();
     ];
-    / append data to the table
-    / example: underlying, option_chain, nifty_opts, etc.
-    switch table {
-        `option_chain: option_chain insert data;
-        `nifty_opts: nifty_opts insert data;
-        `pnl: pnl insert data;
-        `strategy_state: strategy_state insert data;
-        `signals: signals insert data;
-        : show "Unknown table type: ", string table;
-    };
-};
+
+    switch[table;
+        `option_chain;   option_chain insert data;
+        `nifty_opts;     nifty_opts insert data;
+        `pnl;            pnl insert data;
+        `strategy_state; strategy_state insert data;
+        `underlying;     underlying insert data;
+        `signals;        signals insert data;
+        _;               show "Unknown table in switch: ", string table
+    ]};
 
 
+/ ======================= subscribe / broadcast ==========================
 
-//Function to subscribe to tick data
 subscribe:{[func]
-    .tickSubscribers,:func
-}
-//Function to broadcast data to subscribers
+    .tickSubscribers,:func};
+
 broadcastData:{[table; data]
-    foreach[{[sub]
-        sub[table; data]
-    };  .tickSubscribers]
-}
-//Function to handle incoming connections
+    do[foreach sub:.tickSubscribers; sub[table; data]]};
+
+/ ======================= handleConnection ==========================
 handleConnection:{[conn]
-//Handle incoming data from feeeder
-while[1;
-    try:{
-        msg:read0 conn;
-        if[not null msg;
-            handleData[msg];
-            //Broadcast to subscribers
-            if[msg `table in `option_chain`nifty_opts;
-                broadcastData[msg `table; msg `data]
-            ];
-
-        ];
-    }catch{
-        close conn;
-        break;
-    };
-
-];
-
-}
-//Main server Loop
-/ ======================= Server Loop (hlisten for Feeder Connections) ==========================
-/ Start listening on port for feeder connections
-server:{[port]
-    h: hlisten port;  / Listen on port
-    show "Tickerplant listening on port ", string port;
+    show "handleConnection: got conn -> ", string conn;
     while[1;
-        conn: first h;  / Accept connection
-        if[not null conn;
-            / Read msg from connection
-            msg: hread conn;  / Read dict from feeder
-            if[not null msg;
-                handleData msg;  / Call handleData
+        try:{
+            / safe read using try/catch
+            msg: ::;
+            msg: try { conn 0: } catch { show "handleConnection: read error -> ", string x; :: };
+
+            if[msg~::;
+                / nothing read; break the loop
+                show "handleConnection: no message, closing conn ", string conn;
+                close conn;
+                break;
             ];
-            / Close on error or end
-            close conn;
+
+            / got a message — process it
+            handleData[msg];
+
+            if[msg`table in `option_chain`nifty_opts;
+                broadcastData[msg`table; msg`data];
+            ];
+        } catch {
+            show "handleConnection: Exception -> ", string x;
+            / Ensure conn closed on error
+            catch { close conn };
+            break;
+        };
+    ]};
+
+/ ======================= Server Loop ==========================
+server:{[port]
+    h: hopen port;                         / listening handle
+    -1 "Tickerplant listening on port ", string port;
+    /show "Tickerplant listening on port ", string port, " (listen handle=", string h, ")";
+    `$"Ticker Plant Started on port ", string port;
+
+    while[1;
+        / Accept connection (may return null if none)
+        conn: first h;
+
+        / Debug info to help trace 'type problems
+        show "accept returned conn: ", string conn, "  type:", string type conn;
+
+        / If conn is null or empty, wait and continue (avoid busy loop)
+        if[conn~::;
+            system "sleep 0.1";
+            :();
         ];
-    ];
-};
 
+        / If conn does not appear to be a scalar handle (defensive)
+        if[count conn>1;
+            -1 "accepted connection: ", string conn, " type=", string type conn;
+            /show "accept returned a non-scalar conn (list), using first element";
+            conn: first conn;
+            show "using conn:", string conn;
+        ];
 
-//Initialie ticker Plant
+        / final sanity check: ensure conn isn't null
+        if[conn~::;
+            show "conn still null after checks, continuing";
+            sleep 100;
+            continue;
+        ];
+
+        / Now attempt to read safely inside try/catch
+        try:{
+            msg: try { conn 0: } catch { show "server: read error -> ", string x; :: };
+
+            if{not msg~::;
+                handleData[msg];
+            } else {
+                show "server: no message (msg is null), closing conn ", string conn;
+            };
+        } catch {
+            show "server: Exception when reading/processing -> ", string x;
+        };
+
+        / Always attempt to close the connection handle
+        catch { close conn };
+    ]};
+
+/ ======================= Initialize ==========================
 initialize:{
-    `$"Ticker Plant initialized with schema";
-    //Start Listening for connections
-    server 5000;
-}
-//Start the ticker Plant
-initialize[]
+    show "Ticker Plant initialized with schema";
+    server 5000};
+
+initialize[];
