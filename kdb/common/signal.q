@@ -2,7 +2,7 @@
 system "p 6000"
 
 / connect to TP
-.tp: hopen `:kdb-tick:5000;
+.tp: hopen `:tick:5000;
 if[not null .tp; 0N!"Signal: connected to TP"];
 
 / subscribe

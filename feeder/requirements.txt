@@ -4,6 +4,7 @@ numpy
 matplotlib
 scipy
 ta
-ib_insync
+ibapi
 requests
 flask
+qpython

@@ -6,8 +6,10 @@ system "p 5010"
 if[not null .tp; 0N!"RDB: connected to TP"];
 
 / subscribe to streams
-.tp ".u.sub[`option_chain;()]";
-.tp ".u.sub[`underlying;()]";
+/.tp ".u.sub[`option_chain;()]";
+.tp "sub[`option_chain]";
+/.tp ".u.sub[`underlying;()]";
+.tp "sub[`underlying]";
 0N!"RDB: subscribed to option_chain and underlying";
 
 / normalization placeholder

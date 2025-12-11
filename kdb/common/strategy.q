@@ -2,7 +2,7 @@
 system "p 7000"
 
 / subscribe to TP
-.tp: hopen `:kdb-tick:5000;
+.tp: hopen `:tick:5000;
 if[not null .tp; .tp ".u.sub[`option_chain;()]"; .tp ".u.sub[`underlying;()]"; 0N!"Strategy: subscribed to TP"];
 
 / get spot from underlying table
