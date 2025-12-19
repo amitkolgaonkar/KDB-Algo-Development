@@ -4,6 +4,8 @@ from ibapi.contract import Contract
 from ibapi.common import *
 from ibapi.ticktype import TickType
 
+
+
 import threading
 import time
 import traceback
@@ -70,30 +72,47 @@ class IBKRFeeder(EWrapper, EClient):
     # ---------------------------------------------------------
     #  MARKET DATA SUBSCRIPTIONS
     # ---------------------------------------------------------
+    def make_option(self, sym, expiry, strike, right, exch="NSE", cur="INR"):
+        c = Contract()
+        c.symbol = sym
+        c.secType = "OPT"                     # ✅ MUST be OPT
+        c.exchange = exch
+        c.currency = cur
+        c.lastTradeDateOrContractMonth = expiry  # YYYYMMDD
+        c.strike = float(strike)
+        c.right = right                       # "C" or "P"
+        c.multiplier = "75"
+        c.tradingClass = "NIFTY"                   # NIFTY lot size
+        return c
+    
     def subscribe_underlying(self):
-        contract = Stock(
-            symbol="NIFTY",
-            exchange="NSE",
-            currency="INR"
-        )
+        contract = Contract()
+        contract.symbol = "NIFTY"
+        contract.secType = "IND"       # NIFTY is an index
+        contract.exchange = "NSE"
+        contract.currency = "INR"
 
         print(f"Requesting market data for underlying NIFTY (reqId={self.req_id})")
         self.reqMktData(self.req_id, contract, "", False, False, [])
         self.req_map[self.req_id] = {"type": "underlying"}
         self.req_id += 1
 
-    def subscribe_option(self, strike, right):
 
-        contract = Option(
-            symbol="NIFTY",
-            lastTradeDateOrContractMonth="20250124",
+    def subscribe_option(self, strike, right):
+        contract = self.make_option(
+            sym="NIFTY",
+            expiry="20251223",   # YYYYMMDD (weekly expiry)
             strike=strike,
             right=right,
-            exchange="NSE",
-            currency="INR"
+            exch="NSE"
         )
 
         print(f"Requesting option Greeks for {right}{strike} (reqId={self.req_id})")
+
+        # (Optional but highly recommended)
+        self.reqContractDetails(self.req_id, contract)
+        time.sleep(0.5)
+
         self.reqMktData(self.req_id, contract, "106", False, False, [])
         self.req_map[self.req_id] = {
             "type": "option",
@@ -101,23 +120,10 @@ class IBKRFeeder(EWrapper, EClient):
             "right": right
         }
         self.req_id += 1
-    def Stock(sym, exch="NSE", cur="INR"):
-        c = Contract()
-        c.symbol = sym
-        c.secType = "STK"
-        c.exchange = exch
-        c.currency = cur
-        return c
-    def Option(sym, expiry, strike, right, exch="NSE", cur="INR"):
-        c = Contract()
-        c.symbol = sym
-        c.secType = "OPT"
-        c.exchange = exch
-        c.currency = cur
-        c.lastTradeDateOrContractMonth = expiry
-        c.strike = float(strike)
-        c.right = right   # "C" or "P"
-        return c
+
+
+
+    
     # ---------------------------------------------------------
     #  CALLBACKS FROM IB API
     # ---------------------------------------------------------
