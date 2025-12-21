@@ -24,7 +24,8 @@ class IBKRFeeder(EWrapper, EClient):
 
         self.req_id = 1
         self.req_map = {}      # reqId → {"strike":..., "right":...}
-
+    #def contractDetails(self, req_id, contractDetails)
+    #    print("reqID: {}, contract:{}".format(req_id,contractDetails))
     # ---------------------------------------------------------
     #  KDB CONNECTION
     # ---------------------------------------------------------
@@ -74,27 +75,31 @@ class IBKRFeeder(EWrapper, EClient):
     # ---------------------------------------------------------
     def make_option(self, sym, expiry, strike, right, exch="NSE", cur="INR"):
         c = Contract()
-        c.symbol = sym
-        c.secType = "OPT"                     # ✅ MUST be OPT
+        c.symbol = "NIFTY50"
+        c.secType = "IND"                     # ✅ MUST be OPT
         c.exchange = exch
         c.currency = cur
-        c.lastTradeDateOrContractMonth = expiry  # YYYYMMDD
-        c.strike = float(strike)
-        c.right = right                       # "C" or "P"
+        c.lastTradeDateOrContractMonth = "20251223"  # YYYYMMDD
+        c.strike = float(25950)
+        c.right = "C"                       # "C" or "P"
         c.multiplier = "75"
         c.tradingClass = "NIFTY"                   # NIFTY lot size
+        c.conId = 0
         return c
     
     def subscribe_underlying(self):
-        contract = Contract()
-        contract.symbol = "NIFTY"
-        contract.secType = "IND"       # NIFTY is an index
-        contract.exchange = "NSE"
-        contract.currency = "INR"
+        c = Contract()
+        c.symbol = "NIFTY50"
+        c.secType = "IND"      # Index
+        c.exchange = "NSE"
+        c.currency = "INR"
+        
 
-        print(f"Requesting market data for underlying NIFTY (reqId={self.req_id})")
-        self.reqMktData(self.req_id, contract, "", False, False, [])
-        self.req_map[self.req_id] = {"type": "underlying"}
+        print(f"Requesting NIFTY spot (reqId={self.req_id})")
+        self.reqMktData(self.req_id, c, "", False, False, [])
+
+        self.req_map[self.req_id] = {"type": "spot"}
+        self.spot_req_id = self.req_id
         self.req_id += 1
 
 
@@ -102,8 +107,8 @@ class IBKRFeeder(EWrapper, EClient):
         contract = self.make_option(
             sym="NIFTY",
             expiry="20251223",   # YYYYMMDD (weekly expiry)
-            strike=strike,
-            right=right,
+            strike=float(25950),
+            right="Call",
             exch="NSE"
         )
 
